@@ -1,0 +1,17 @@
+# Секреты и локальная конфигурация
+.env
+.env.*
+
+# Зависимости
+node_modules/
+
+# Логи и временные файлы
+*.log
+npm-debug.log*
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

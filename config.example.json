@@ -1,0 +1,55 @@
+{
+    "token": "",
+    "prefix": "/",
+    "clientId": "ВАШ_APPLICATION_ID",
+    "guildId": "ID_ВАШЕГО_СЕРВЕРА",
+    "usePrivilegedIntents": false,
+    "channels": {
+        "invite": "ID_КАНАЛА_АУДИТА_ПРИЕМА",
+        "uninvite": "ID_КАНАЛА_АУДИТА_УВОЛЬНЕНИЙ",
+        "uprank": "ID_КАНАЛА_АУДИТА_ПОВЫШЕНИЙ",
+        "transfer": "ID_КАНАЛА_АУДИТА_ПЕРЕВОДОВ",
+        "resign": "ID_КАНАЛА_РАПОРТОВ_НА_УВОЛЬНЕНИЕ",
+        "promotion": "ID_КАНАЛА_ЗАПРОСОВ_НА_ПОВЫШЕНИЕ",
+        "uprankRequest": "ID_КАНАЛА_ОТЧЕТОВ_ХАЙ_РАНГ",
+        "factionTransfer": "ID_КАНАЛА_ПЕРЕВОДОВ_ФРАКЦИЙ",
+        "botInfo": "ID_КАНАЛА_ИНФОРМАЦИИ_О_БОТЕ"
+    },
+    "roles": {
+        "commands": ["ID_РОЛИ_СТАРШИЙ_СОСТАВ", "ID_РОЛИ_MA"],
+        "uninvite": ["ID_РОЛИ_СТАРШИЙ_СОСТАВ"],
+        "resignPromotionSubmit": ["ID_РОЛИ_SANG"],
+        "resignPromotionApprove": ["ID_РОЛИ_СТАРШИЙ_СОСТАВ"],
+        "uprankRequestApprove": ["ID_РОЛИ_ГЕНЕРАЛ_ЛЕЙТЕНАНТ"],
+        "inviteRoles": ["ID_РОЛИ_SANG", "ID_РОЛИ_ACADEMY"],
+        "factionTransferSubmit": ["ID_РОЛИ_SANG"],
+        "factionTransferApprove": ["ID_РОЛИ_ГЕНЕРАЛ"],
+        "departments": [
+            "ID_УКМБ",
+            "ID_ACADEMY",
+            "ID_DIV_DIVISION",
+            "ID_MMS",
+            "ID_SOG",
+            "ID_CG_COAST_GUARD",
+            "ID_AF_AIR_FORCE",
+            "ID_SEAL",
+            "ID_DF_DELTA_FORCE",
+            "ID_MP_MILITARY_POLICE",
+            "ID_MA_MILITARY_ACADEMY"
+        ]
+    },
+    "roster": {
+        "updateIntervalMinutes": 30,
+        "excludeFromDepartmentRoster": ["ID_ГЕНЕРАЛ_ЛЕЙТЕНАНТ"],
+        "highStaff": {
+            "channelId": "ID_КАНАЛА_ХАЙ_СТАФФ",
+            "categories": [
+                { "title": "Генерал, Генерал-полковник", "roleIds": ["ID_ГЕНЕРАЛ", "ID_ГЕНЕРАЛ_ПОЛКОВНИК"] },
+                { "title": "Генерал-лейтенант", "roleIds": ["ID_ГЕНЕРАЛ_ЛЕЙТЕНАНТ"] }
+            ]
+        },
+        "departments": [
+            { "channelId": "ID_КАНАЛА_MA", "name": "MILITARY ACADEMY", "shortName": "MA", "curator": "ID_КУРАТОР_MA", "head": "ID_HEAD_MA", "deputyHead": "ID_DEPUTY_MA", "instructor": "ID_INSTRUCTOR_MA", "staff": "ID_СТАФФ_MA" }
+        ]
+    }
+}
