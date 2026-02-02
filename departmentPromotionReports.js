@@ -296,7 +296,7 @@ async function handleFormModalSubmit(interaction) {
       `Отправьте **до ${MAX_SCREENSHOTS} скриншотов** в этот чат (можно несколькими сообщениями) в течение ${Math.round(
         COLLECTOR_TIME_MS / 1000
       )} секунд.\n` +
-      'Когда закончите — напишите **готово** (или **стоп**) одним сообщением.',
+      'Ваше сообщение автоматически удалиться и отправиться от имени бота.',
     flags: MessageFlags.Ephemeral,
   }).catch(() => {});
 

@@ -76,7 +76,7 @@
             ]
         },
         "departments": [
-            { "channelId": "1382738893216153724", "name": "MILITARY ACADEMY", "shortName": "MA", "curator": "1450208073506361844", "head": "1450204640334319667", "deputyHead": "1450203564311056417", "instructor": "1450202807796760668", "staff": "1382738220797788322" },
+            { "channelId": "1382738893216153724", "name": "MILITARY ACADEMY", "shortName": "MA", "curator": "1450208073506361484", "head": "1450204640334319667", "deputyHead": "1450203564311056417", "instructor": "1450202807796760668", "staff": "1382738220797788322" },
             { "channelId": "1382738602101833778", "name": "MILITARY POLICE", "shortName": "MP", "curator": "1450208004199940293", "head": "1450204574244671499", "deputyHead": "1450203482144637039", "instructor": "1450202714725154886", "staff": "1450196714488205386" },
             { "channelId": "1382738673899933838", "name": "DELTA FORCE", "shortName": "DF", "curator": "1450208096101204089", "head": "1450204654821576927", "deputyHead": "1450203580811448510", "instructor": "1450202862788280392", "staff": "1382738226200186944" },
             { "channelId": "1382738622956044338", "name": "SEAL", "shortName": "SEAL", "curator": "1450208125041901660", "head": "1450204672810946622", "deputyHead": "1450203616588730389", "instructor": "1450202897538224148", "staff": "1382738222156615852" },
