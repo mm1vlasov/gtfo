@@ -51,6 +51,21 @@ function getApproveRoleIdsForDept(deptKey) {
   return [d.curator, d.head, d.deputyHead, d.instructor].filter(Boolean);
 }
 
+function getSubmitRoleIdsForDept(deptKey) {
+  // Требование: подавать можно только в своём отделе (по роли отдела).
+  // Academy: только роль Academy.
+  // MCE: подавать могут люди с ролью отдела MA.
+  if (deptKey === 'Academy') {
+    // В конфиге Academy уже используется в inviteRoles (SANG + Academy).
+    const academyRoleId = config.roles?.inviteRoles?.[1];
+    return academyRoleId ? [academyRoleId] : [];
+  }
+
+  const effective = deptKey === 'MCE' ? 'MA' : deptKey;
+  const d = getRosterDept(effective);
+  return d?.staff ? [d.staff] : [];
+}
+
 function roleMentions(roleIds) {
   const ids = Array.isArray(roleIds) ? roleIds : [roleIds];
   const cleaned = ids.filter(Boolean);
@@ -131,7 +146,7 @@ function buildFormModal(deptKey) {
         .setCustomId('dept_promo_proof_link')
         .setLabel('Доказательства (ссылка из канала благодарностей)')
         .setStyle(TextInputStyle.Short)
-        .setRequired(true)
+        .setRequired(false)
         .setMaxLength(200)
     )
   );
@@ -140,6 +155,7 @@ function buildFormModal(deptKey) {
 
 function buildReportEmbed(deptKey, applicantUser, applicantDisplayName, fromRank, toRank, proofLink) {
   const filledBy = `${applicantUser} | ${applicantDisplayName}`;
+  const proofValue = proofLink ? `• ${proofLink}` : '• —';
   return new EmbedBuilder()
     .setColor(EMBED_COLOR)
     .setTitle(`${FOLDER} Отчет на повышение | ${deptKey}`)
@@ -147,7 +163,7 @@ function buildReportEmbed(deptKey, applicantUser, applicantDisplayName, fromRank
       { name: "**Заполнил'а**", value: `• ${filledBy}`, inline: false },
       { name: '**С какого ранга**', value: `• ${fromRank}`, inline: false },
       { name: '**На какой ранг**', value: `• ${toRank}`, inline: false },
-      { name: '**Доказательства**', value: `• ${proofLink}\n• ${MAX_SCREENSHOTS} скриншотов (вложения ниже)`, inline: false }
+      { name: '**Доказательства**', value: `${proofValue}\n• ${MAX_SCREENSHOTS} скриншотов (вложения ниже)`, inline: false }
     )
     .setTimestamp();
 }
@@ -190,7 +206,8 @@ async function sendUprankAudit(interaction, data) {
   const approverDisplayName = getDisplayName(interaction);
   const employeeDisplay = `${data.applicantUser} | ${data.applicantDisplayName}`;
   const topLine = `${interaction.user} заполнил'а кадровый аудит на ${data.applicantUser}`;
-  const reasonText = `Отчет на повышение (${data.deptKey}) одобрен: ${interaction.message.url}`;
+  const reasonText = `Одобрение повышения. Ссылка на отчёт: ${interaction.message.url}`;
+  const proofValue = data.proofLink ? `• ${data.proofLink}` : '• —';
 
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLOR)
@@ -201,7 +218,7 @@ async function sendUprankAudit(interaction, data) {
       { name: '**Отдел**', value: `• ${data.deptKey}`, inline: false },
       { name: '**С какого ранга**', value: `• ${data.fromRank}`, inline: false },
       { name: '**На какой ранг**', value: `• ${data.toRank}`, inline: false },
-      { name: '**Доказательства**', value: `• ${data.proofLink}`, inline: false },
+      { name: '**Доказательства**', value: proofValue, inline: false },
       { name: '**Причина**', value: `• ${reasonText}`, inline: false }
     )
     .setTimestamp();
@@ -219,10 +236,17 @@ async function handleOpenForm(interaction) {
     return true;
   }
 
-  const allowedSubmitRoles = config.roles?.departments || [];
-  if (!hasRole(interaction.member, allowedSubmitRoles)) {
+  const submitRoleIds = getSubmitRoleIdsForDept(deptKey);
+  if (submitRoleIds.length === 0) {
     await interaction.reply({
-      content: 'Подавать отчет на повышение может только участник с ролью отдела.',
+      content: 'Не настроена роль отдела для подачи отчёта (проверьте roles.inviteRoles для Academy и roster.departments[].staff).',
+      flags: MessageFlags.Ephemeral,
+    }).catch(() => {});
+    return true;
+  }
+  if (!hasRole(interaction.member, submitRoleIds)) {
+    await interaction.reply({
+      content: `Подавать отчет на повышение в этом канале могут только участники с ролью отдела: ${roleMentions(submitRoleIds)}.`,
       flags: MessageFlags.Ephemeral,
     }).catch(() => {});
     return true;
@@ -244,12 +268,11 @@ async function handleFormModalSubmit(interaction) {
 
   const fromRank = interaction.fields.getTextInputValue('dept_promo_from_rank').trim();
   const toRank = interaction.fields.getTextInputValue('dept_promo_to_rank').trim();
-  const proofLink = interaction.fields.getTextInputValue('dept_promo_proof_link').trim();
+  const proofLink = interaction.fields.getTextInputValue('dept_promo_proof_link')?.trim?.() ?? '';
 
   const errors = [];
   if (!fromRank) errors.push('• **С какого ранга:** поле обязательно.');
   if (!toRank) errors.push('• **На какой ранг:** поле обязательно.');
-  if (!proofLink) errors.push('• **Доказательства:** поле обязательно.');
 
   if (errors.length > 0) {
     await interaction.reply({
@@ -259,10 +282,12 @@ async function handleFormModalSubmit(interaction) {
     return true;
   }
 
-  const proofValidation = validateProofLink(proofLink);
-  if (!proofValidation.ok) {
-    await interaction.reply({ content: `❌ ${proofValidation.error}`, flags: MessageFlags.Ephemeral }).catch(() => {});
-    return true;
+  if (proofLink) {
+    const proofValidation = validateProofLink(proofLink);
+    if (!proofValidation.ok) {
+      await interaction.reply({ content: `❌ ${proofValidation.error}`, flags: MessageFlags.Ephemeral }).catch(() => {});
+      return true;
+    }
   }
 
   await interaction.reply({
