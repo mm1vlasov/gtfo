@@ -16,7 +16,7 @@ const SETUP_EMBED_COLOR = 0x3498db;
 const BUTTON_LABEL_MAX = 80;
 
 const MAX_SCREENSHOTS = Number(config.departmentPromotionReports?.maxScreenshots ?? 10);
-const COLLECTOR_TIME_MS = Number(config.departmentPromotionReports?.collectorTimeMs ?? 120_000);
+const COLLECTOR_TIMEOUT_MS = 30_000; // Таймаут ожидания скриншотов
 
 const pendingByMessage = new Map(); // messageId -> data
 const activeCollectors = new Map(); // key = `${channelId}:${userId}` -> true
@@ -44,8 +44,6 @@ function getRosterDept(shortName) {
 }
 
 function getApproveRoleIdsForDept(deptKey) {
-  // По требованию: MCE использует роли MA (куратор/хед/деп/инструктор).
-  // Для Academy тоже используем MA, т.к. отдельные роли руководства Academy не переданы.
   const effective = deptKey === 'MCE' || deptKey === 'Academy' ? 'MA' : deptKey;
   const d = getRosterDept(effective);
   if (!d) return [];
@@ -53,11 +51,7 @@ function getApproveRoleIdsForDept(deptKey) {
 }
 
 function getSubmitRoleIdsForDept(deptKey) {
-  // Требование: подавать можно только в своём отделе (по роли отдела).
-  // Academy: только роль Academy.
-  // MCE: подавать могут люди с ролью отдела MA.
   if (deptKey === 'Academy') {
-    // В конфиге Academy уже используется в inviteRoles (SANG + Academy).
     const academyRoleId = config.roles?.inviteRoles?.[1];
     return academyRoleId ? [academyRoleId] : [];
   }
@@ -75,7 +69,6 @@ function roleMentions(roleIds) {
 }
 
 function parseDiscordMessageLink(url) {
-  // Пример: https://discord.com/channels/<guildId>/<channelId>/<messageId>
   const m = String(url || '').trim().match(
     /^https?:\/\/(?:ptb\.|canary\.)?discord(?:app)?\.com\/channels\/(\d+)\/(\d+)\/(\d+)(?:\?.*)?$/i
   );
@@ -83,20 +76,15 @@ function parseDiscordMessageLink(url) {
   return { guildId: m[1], channelId: m[2], messageId: m[3] };
 }
 
+// ✅ ИЗМЕНЕНО: Проверка ТОЛЬКО по ID сервера (без привязки к каналу)
 function validateProofLink(link) {
-  const gratitudeChannelId = config.channels?.gratitude;
-  if (!gratitudeChannelId) {
-    return { ok: false, error: 'Не настроен канал благодарностей: укажите `channels.gratitude` в config.json.' };
-  }
   const parsed = parseDiscordMessageLink(link);
   if (!parsed) {
     return { ok: false, error: 'Ссылка на доказательства должна быть ссылкой на сообщение Discord (формат `discord.com/channels/...`).' };
   }
-  if (String(parsed.guildId) !== String(config.guildId)) {
-    return { ok: false, error: 'Ссылка должна вести на сообщение **вашего** сервера.' };
-  }
-  if (String(parsed.channelId) !== String(gratitudeChannelId)) {
-    return { ok: false, error: 'Ссылка должна вести **только** на канал благодарностей.' };
+  // Жёсткая проверка на ваш сервер (ID из запроса)
+  if (String(parsed.guildId) !== '1382608532679037020') {
+    return { ok: false, error: 'Ссылка должна вести на сообщение **вашего сервера** (ID: 1382608532679037020).' };
   }
   return { ok: true };
 }
@@ -109,7 +97,7 @@ function getSetupContent(deptKey) {
         .setColor(SETUP_EMBED_COLOR)
         .setTitle(`Отчет на повышение (${deptKey})`)
         .setDescription(
-          `Чтобы создать отчет на повышение для отдела **${deptKey}**, нажмите кнопку ниже, заполните форму и затем отправьте **${MAX_SCREENSHOTS} скриншотов** в этот чат.`
+          `Чтобы создать отчет на повышение для отдела **${deptKey}**, нажмите кнопку ниже, заполните форму и отправьте скриншот(ы) в этот чат.`
         ),
     ],
     components: [
@@ -145,8 +133,8 @@ function buildFormModal(deptKey) {
     new ActionRowBuilder().addComponents(
       new TextInputBuilder()
         .setCustomId('dept_promo_proof_link')
-        // В Discord лимит label = 45 символов
-        .setLabel('Доказательства (ссылка из благодарностей)')
+        // ✅ ИЗМЕНЕНО: Убрано упоминание "благодарностей"
+        .setLabel('Доказательства (ссылка на сообщение с сервера)')
         .setStyle(TextInputStyle.Short)
         .setRequired(false)
         .setMaxLength(200)
@@ -165,7 +153,7 @@ function buildReportEmbed(deptKey, applicantUser, applicantDisplayName, fromRank
       { name: "**Заполнил'а**", value: `• ${filledBy}`, inline: false },
       { name: '**С какого ранга**', value: `• ${fromRank}`, inline: false },
       { name: '**На какой ранг**', value: `• ${toRank}`, inline: false },
-      { name: '**Доказательства**', value: `${proofValue}\n• ${MAX_SCREENSHOTS} скриншотов (вложения ниже)`, inline: false }
+      { name: '**Доказательства**', value: `${proofValue}\n• Скриншоты (вложения ниже)`, inline: false }
     )
     .setTimestamp();
 }
@@ -183,8 +171,9 @@ function getActionButtons() {
 async function downloadAttachment(attachment) {
   const res = await fetch(attachment.url);
   const buf = Buffer.from(await res.arrayBuffer());
-  const name = attachment.name && /\.(png|jpe?g|gif|webp)$/i.test(attachment.name) ? attachment.name : 'proof.png';
-  return { attachment: buf, name };
+  const extMatch = attachment.name?.match(/\.(png|jpe?g|gif|webp)$/i);
+  const ext = extMatch ? extMatch[0] : '.png';
+  return { attachment: buf, name: `proof${ext}` };
 }
 
 async function sendUprankAudit(interaction, data) {
@@ -258,6 +247,7 @@ async function handleOpenForm(interaction) {
   return true;
 }
 
+// ✅ ПОЛНОСТЬЮ ПЕРЕПИСАНА: Мгновенная обработка + 30 сек таймаут
 async function handleFormModalSubmit(interaction) {
   if (!interaction.customId.startsWith('dept_promo_form_modal_')) return false;
 
@@ -292,19 +282,18 @@ async function handleFormModalSubmit(interaction) {
     }
   }
 
+  // ✅ ИЗМЕНЕНО: Новое сообщение с ясной инструкцией
   await interaction.reply({
-    content:
-      `Отправьте **до ${MAX_SCREENSHOTS} скриншотов** в этот чат (можно несколькими сообщениями) в течение ${Math.round(
-        COLLECTOR_TIME_MS / 1000
-      )} секунд.\n` +
-      'Бот автоматически соберёт ваши вложения и сформирует отчёт. Сообщения со скриншотами будут удалены.',
+    content: `📸 Отправьте **скриншот(ы)** с доказательствами в этот чат.\n` +
+             `✅ Бот **мгновенно** создаст отчёт после получения первого изображения.\n` +
+             `⏳ Если ничего не отправить — запрос отменится через ${Math.round(COLLECTOR_TIMEOUT_MS / 1000)} секунд.`,
     flags: MessageFlags.Ephemeral,
   }).catch(() => {});
 
   const channel = interaction.channel;
-  const collected = [];
   const messagesToDelete = new Set();
   const collectorKey = `${interaction.channelId}:${interaction.user.id}`;
+  let hasProcessed = false;
 
   if (activeCollectors.has(collectorKey)) {
     await interaction.followUp({
@@ -317,75 +306,103 @@ async function handleFormModalSubmit(interaction) {
 
   const collector = channel.createMessageCollector({
     filter: (m) => m.author.id === interaction.user.id,
-    time: COLLECTOR_TIME_MS,
+    time: COLLECTOR_TIMEOUT_MS,
   });
 
   collector.on('collect', async (message) => {
-    if (!message.attachments?.size) return;
-    messagesToDelete.add(message);
-    for (const a of message.attachments.values()) {
-      if (collected.length >= MAX_SCREENSHOTS) break;
-      collected.push(a);
-    }
-    if (collected.length >= MAX_SCREENSHOTS) {
-      collector.stop('done');
-    }
-  });
-
-  collector.on('end', async (_collectedMsgs, reason) => {
-    activeCollectors.delete(collectorKey);
-    if (collected.length === 0) {
-      // Сообщаем эфемерно: нет ни одного скрина
-      await interaction
-        .followUp({
-          content: 'Не удалось собрать скриншоты за отведённое время. Попробуйте снова.',
-          flags: MessageFlags.Ephemeral,
-        })
-        .catch(() => {});
+    if (hasProcessed) return;
+    
+    // Если сообщение без вложений — удалим позже, продолжаем ждать
+    if (!message.attachments?.size) {
+      messagesToDelete.add(message);
       return;
     }
 
+    // ✅ НАШЛИ СКРИНШОТ — обрабатываем МГНОВЕННО
+    hasProcessed = true;
+    messagesToDelete.add(message);
+    
+    // Берём все вложения из сообщения (до лимита)
+    const collected = Array.from(message.attachments.values()).slice(0, MAX_SCREENSHOTS);
+    
+    // Скачиваем изображения
     let files;
     try {
-      files = await Promise.all(collected.map((a, i) => downloadAttachment(a).then((r) => ({ ...r, name: `proof${i + 1}.png` }))));
+      files = await Promise.all(
+        collected.map((a, i) => 
+          downloadAttachment(a).then(r => ({ 
+            attachment: r.attachment, 
+            name: `proof${i + 1}${r.name}` 
+          }))
+        )
+      );
     } catch (err) {
       console.error('DeptPromotionReports: failed to download images', err);
-      await interaction
-        .followUp({ content: 'Не удалось загрузить изображения. Попробуйте снова.', flags: MessageFlags.Ephemeral })
-        .catch(() => {});
+      hasProcessed = false;
+      activeCollectors.delete(collectorKey);
+      
+      // Удаляем все собранные сообщения
+      for (const m of messagesToDelete) await m.delete().catch(() => {});
+      
+      await interaction.followUp({ 
+        content: '❌ Не удалось загрузить изображения. Попробуйте снова.', 
+        flags: MessageFlags.Ephemeral 
+      }).catch(() => {});
+      collector.stop('error');
       return;
     }
 
+    // Формируем отчёт
     const approveRoleIds = getApproveRoleIdsForDept(deptKey);
     const applicantDisplayName = getDisplayName(interaction);
     const embed = buildReportEmbed(deptKey, interaction.user, applicantDisplayName, fromRank, toRank, proofLink);
-    const filePayload = files.map((f) => ({ attachment: f.attachment, name: f.name }));
+    const filePayload = files.map(f => ({ attachment: f.attachment, name: f.name }));
 
-    const sentMsg = await channel
-      .send({
+    try {
+      const sentMsg = await channel.send({
         content: approveRoleIds.length ? roleMentions(approveRoleIds) : null,
-        files: filePayload,
+        files: filePayload, // ✅ Discord хранит эти вложения ПОСТОЯННО
         embeds: [embed],
         components: getActionButtons(),
-      })
-      .catch(() => null);
+      });
 
-    if (!sentMsg) return;
+      if (sentMsg) {
+        pendingByMessage.set(sentMsg.id, {
+          deptKey,
+          approveRoleIds,
+          fromRank,
+          toRank,
+          proofLink,
+          applicantUserId: interaction.user.id,
+          applicantUser: interaction.user,
+          applicantDisplayName,
+        });
+      }
+    } catch (err) {
+      console.error('DeptPromotionReports: failed to send report', err);
+      hasProcessed = false;
+    }
 
-    pendingByMessage.set(sentMsg.id, {
-      deptKey,
-      approveRoleIds,
-      fromRank,
-      toRank,
-      proofLink,
-      applicantUserId: interaction.user.id,
-      applicantUser: interaction.user,
-      applicantDisplayName,
-    });
+    // Удаляем все сообщения пользователя за сессию
+    for (const m of messagesToDelete) await m.delete().catch(() => {});
+    
+    activeCollectors.delete(collectorKey);
+    collector.stop('success');
+  });
 
-    // Не засоряем чат: удаляем сообщения пользователя со скриншотами
-    for (const m of messagesToDelete) {
-      await m.delete().catch(() => {});
+  collector.on('end', async (_, reason) => {
+    if (hasProcessed) return;
+    
+    activeCollectors.delete(collectorKey);
+    
+    // Удаляем все собранные сообщения (без вложений)
+    for (const m of messagesToDelete) await m.delete().catch(() => {});
+    
+    if (reason === 'time') {
+      await interaction.followUp({
+        content: '❌ Время вышло: не получено ни одного скриншота. Попробуйте снова.',
+        flags: MessageFlags.Ephemeral,
+      }).catch(() => {});
     }
   });
 
@@ -573,4 +590,3 @@ module.exports = {
   getSetupContent,
   handleDepartmentPromotionReportsInteraction,
 };
-
