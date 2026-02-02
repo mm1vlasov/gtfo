@@ -17,9 +17,9 @@
         "gratitude": "ID_КАНАЛА_БЛАГОДАРНОСТЕЙ"
     },
     "roles": {
-        "commands": ["ID_РОЛИ_СТАРШИЙ_СОСТАВ", "ID_РОЛИ_MA"],
-        "uninvite": ["ID_РОЛИ_СТАРШИЙ_СОСТАВ"],
-        "resignPromotionSubmit": ["ID_РОЛИ_SANG"],
+        "commands": ["ID_РОЛИ_СТАРШИЙ_СОСТАВ", "ID_РОЛИ_MA", "ID_РОЛИ_МАЙОР_БЕЗ_ОТДЕЛА"],
+        "uninvite": ["ID_РОЛИ_СТАРШИЙ_СОСТАВ", "ID_РОЛИ_МАЙОР_БЕЗ_ОТДЕЛА"],
+        "resignPromotionSubmit": ["ID_РОЛИ_SANG", "ID_РОЛИ_МАЙОР_БЕЗ_ОТДЕЛА"],
         "resignPromotionApprove": ["ID_РОЛИ_СТАРШИЙ_СОСТАВ"],
         "uprankRequestApprove": ["ID_РОЛИ_ГЕНЕРАЛ_ЛЕЙТЕНАНТ"],
         "inviteRoles": ["ID_РОЛИ_SANG", "ID_РОЛИ_ACADEMY"],

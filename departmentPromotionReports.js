@@ -144,7 +144,8 @@ function buildFormModal(deptKey) {
     new ActionRowBuilder().addComponents(
       new TextInputBuilder()
         .setCustomId('dept_promo_proof_link')
-        .setLabel('Доказательства (ссылка из канала благодарностей)')
+        // В Discord лимит label = 45 символов
+        .setLabel('Доказательства (ссылка из благодарностей)')
         .setStyle(TextInputStyle.Short)
         .setRequired(false)
         .setMaxLength(200)
