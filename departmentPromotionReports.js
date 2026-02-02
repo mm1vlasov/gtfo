@@ -19,6 +19,7 @@ const MAX_SCREENSHOTS = Number(config.departmentPromotionReports?.maxScreenshots
 const COLLECTOR_TIME_MS = Number(config.departmentPromotionReports?.collectorTimeMs ?? 120_000);
 
 const pendingByMessage = new Map(); // messageId -> data
+const activeCollectors = new Map(); // key = `${channelId}:${userId}` -> true
 
 function truncateLabel(text, max = BUTTON_LABEL_MAX) {
   if (!text) return '';
@@ -296,13 +297,23 @@ async function handleFormModalSubmit(interaction) {
       `Отправьте **до ${MAX_SCREENSHOTS} скриншотов** в этот чат (можно несколькими сообщениями) в течение ${Math.round(
         COLLECTOR_TIME_MS / 1000
       )} секунд.\n` +
-      'Ваше сообщение автоматически удалиться и отправиться от имени бота.',
+      'Бот автоматически соберёт ваши вложения и сформирует отчёт. Сообщения со скриншотами будут удалены.',
     flags: MessageFlags.Ephemeral,
   }).catch(() => {});
 
   const channel = interaction.channel;
   const collected = [];
   const messagesToDelete = new Set();
+  const collectorKey = `${interaction.channelId}:${interaction.user.id}`;
+
+  if (activeCollectors.has(collectorKey)) {
+    await interaction.followUp({
+      content: 'У вас уже идёт сбор скриншотов в этом канале. Дождитесь завершения и попробуйте снова.',
+      flags: MessageFlags.Ephemeral,
+    }).catch(() => {});
+    return true;
+  }
+  activeCollectors.set(collectorKey, true);
 
   const collector = channel.createMessageCollector({
     filter: (m) => m.author.id === interaction.user.id,
@@ -310,13 +321,6 @@ async function handleFormModalSubmit(interaction) {
   });
 
   collector.on('collect', async (message) => {
-    const text = String(message.content || '').trim().toLowerCase();
-    if ((text === 'готово' || text === 'стоп' || text === 'stop') && collected.length > 0) {
-      messagesToDelete.add(message);
-      collector.stop('done');
-      return;
-    }
-
     if (!message.attachments?.size) return;
     messagesToDelete.add(message);
     for (const a of message.attachments.values()) {
@@ -329,6 +333,7 @@ async function handleFormModalSubmit(interaction) {
   });
 
   collector.on('end', async (_collectedMsgs, reason) => {
+    activeCollectors.delete(collectorKey);
     if (collected.length === 0) {
       // Сообщаем эфемерно: нет ни одного скрина
       await interaction
@@ -378,7 +383,7 @@ async function handleFormModalSubmit(interaction) {
       applicantDisplayName,
     });
 
-    // Не засоряем чат: удаляем сообщения пользователя со скриншотами/командой "готово"
+    // Не засоряем чат: удаляем сообщения пользователя со скриншотами
     for (const m of messagesToDelete) {
       await m.delete().catch(() => {});
     }
