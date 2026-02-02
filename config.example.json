@@ -13,7 +13,8 @@
         "promotion": "ID_КАНАЛА_ЗАПРОСОВ_НА_ПОВЫШЕНИЕ",
         "uprankRequest": "ID_КАНАЛА_ОТЧЕТОВ_ХАЙ_РАНГ",
         "factionTransfer": "ID_КАНАЛА_ПЕРЕВОДОВ_ФРАКЦИЙ",
-        "botInfo": "ID_КАНАЛА_ИНФОРМАЦИИ_О_БОТЕ"
+        "botInfo": "ID_КАНАЛА_ИНФОРМАЦИИ_О_БОТЕ",
+        "gratitude": "ID_КАНАЛА_БЛАГОДАРНОСТЕЙ"
     },
     "roles": {
         "commands": ["ID_РОЛИ_СТАРШИЙ_СОСТАВ", "ID_РОЛИ_MA"],
@@ -51,5 +52,23 @@
         "departments": [
             { "channelId": "ID_КАНАЛА_MA", "name": "MILITARY ACADEMY", "shortName": "MA", "curator": "ID_КУРАТОР_MA", "head": "ID_HEAD_MA", "deputyHead": "ID_DEPUTY_MA", "instructor": "ID_INSTRUCTOR_MA", "staff": "ID_СТАФФ_MA" }
         ]
+    }
+    ,
+    "departmentPromotionReports": {
+        "maxScreenshots": 10,
+        "collectorTimeMs": 120000,
+        "channels": {
+            "Academy": "ID_КАНАЛА_ОТЧЕТ_ПОВЫШЕНИЕ_ACADEMY",
+            "MCE": "ID_КАНАЛА_ОТЧЕТ_ПОВЫШЕНИЕ_MCE",
+            "MA": "ID_КАНАЛА_ОТЧЕТ_ПОВЫШЕНИЕ_MA",
+            "MP": "ID_КАНАЛА_ОТЧЕТ_ПОВЫШЕНИЕ_MP",
+            "DF": "ID_КАНАЛА_ОТЧЕТ_ПОВЫШЕНИЕ_DF",
+            "SEAL": "ID_КАНАЛА_ОТЧЕТ_ПОВЫШЕНИЕ_SEAL",
+            "AF": "ID_КАНАЛА_ОТЧЕТ_ПОВЫШЕНИЕ_AF",
+            "CG": "ID_КАНАЛА_ОТЧЕТ_ПОВЫШЕНИЕ_CG",
+            "SOG": "ID_КАНАЛА_ОТЧЕТ_ПОВЫШЕНИЕ_SOG",
+            "MMS": "ID_КАНАЛА_ОТЧЕТ_ПОВЫШЕНИЕ_MMS",
+            "DIV": "ID_КАНАЛА_ОТЧЕТ_ПОВЫШЕНИЕ_DIV"
+        }
     }
 }

@@ -7,6 +7,11 @@ const { RESIGN_CHANNEL_ID, getSetupContent: getResignSetupContent, handleResignI
 const { PROMOTION_CHANNEL_ID, getSetupContent: getPromotionSetupContent, handlePromotionInteraction } = require('./promotion.js');
 const { UPRANK_REQUEST_CHANNEL_ID, getSetupContent: getUprankRequestSetupContent, handleUprankRequestInteraction } = require('./uprankRequest.js');
 const { FACTION_TRANSFER_CHANNEL_ID, getSetupContent: getFactionTransferSetupContent, handleFactionTransferInteraction } = require('./factionTransfer.js');
+const {
+  getSetupTargets: getDeptPromotionSetupTargets,
+  getSetupContent: getDeptPromotionSetupContent,
+  handleDepartmentPromotionReportsInteraction,
+} = require('./departmentPromotionReports.js');
 const { startRosterScheduler } = require('./roster.js');
 const { sendOrUpdateBotInfo } = require('./botInfo.js');
 
@@ -87,6 +92,13 @@ client.once(Events.ClientReady, async () => {
   const factionTransferChannel = FACTION_TRANSFER_CHANNEL_ID ? await client.channels.fetch(FACTION_TRANSFER_CHANNEL_ID).catch(() => null) : null;
   await ensureSetupMessage(factionTransferChannel, getFactionTransferSetupContent, 'Переводы фракций', 'Переводы фракций');
 
+  // Отчёты на повышение по отделам (несколько каналов)
+  const deptTargets = getDeptPromotionSetupTargets();
+  for (const t of deptTargets) {
+    const ch = t.channelId ? await client.channels.fetch(t.channelId).catch(() => null) : null;
+    await ensureSetupMessage(ch, () => getDeptPromotionSetupContent(t.deptKey), t.embedTitle, t.logName);
+  }
+
   if (config.usePrivilegedIntents && (config.roster?.highStaff?.channelId || config.roster?.departments?.length)) {
     startRosterScheduler(client);
   } else if (config.roster?.highStaff?.channelId || config.roster?.departments?.length) {
@@ -107,6 +119,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
       if (handledUprankRequest) return;
       const handledFactionTransfer = await handleFactionTransferInteraction(interaction);
       if (handledFactionTransfer) return;
+      const handledDeptPromotion = await handleDepartmentPromotionReportsInteraction(interaction);
+      if (handledDeptPromotion) return;
     } catch (err) {
       console.error(err);
       const reply = { content: 'Произошла ошибка.', flags: MessageFlags.Ephemeral };
