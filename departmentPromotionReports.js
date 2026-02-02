@@ -292,14 +292,17 @@ async function handleFormModalSubmit(interaction) {
   }
 
   await interaction.reply({
-    content: `Отправьте **${MAX_SCREENSHOTS} скриншотов** в этот чат (можно несколькими сообщениями) в течение ${Math.round(
-      COLLECTOR_TIME_MS / 1000
-    )} секунд.`,
+    content:
+      `Отправьте **до ${MAX_SCREENSHOTS} скриншотов** в этот чат (можно несколькими сообщениями) в течение ${Math.round(
+        COLLECTOR_TIME_MS / 1000
+      )} секунд.\n` +
+      'Когда закончите — напишите **готово** (или **стоп**) одним сообщением.',
     flags: MessageFlags.Ephemeral,
   }).catch(() => {});
 
   const channel = interaction.channel;
   const collected = [];
+  const messagesToDelete = new Set();
 
   const collector = channel.createMessageCollector({
     filter: (m) => m.author.id === interaction.user.id,
@@ -307,7 +310,15 @@ async function handleFormModalSubmit(interaction) {
   });
 
   collector.on('collect', async (message) => {
+    const text = String(message.content || '').trim().toLowerCase();
+    if ((text === 'готово' || text === 'стоп' || text === 'stop') && collected.length > 0) {
+      messagesToDelete.add(message);
+      collector.stop('done');
+      return;
+    }
+
     if (!message.attachments?.size) return;
+    messagesToDelete.add(message);
     for (const a of message.attachments.values()) {
       if (collected.length >= MAX_SCREENSHOTS) break;
       collected.push(a);
@@ -318,9 +329,13 @@ async function handleFormModalSubmit(interaction) {
   });
 
   collector.on('end', async (_collectedMsgs, reason) => {
-    if (reason !== 'done') {
-      await channel
-        .send({ content: `${interaction.user}, не удалось собрать ${MAX_SCREENSHOTS} скриншотов за отведённое время. Попробуйте снова.` })
+    if (collected.length === 0) {
+      // Сообщаем эфемерно: нет ни одного скрина
+      await interaction
+        .followUp({
+          content: 'Не удалось собрать скриншоты за отведённое время. Попробуйте снова.',
+          flags: MessageFlags.Ephemeral,
+        })
         .catch(() => {});
       return;
     }
@@ -330,7 +345,9 @@ async function handleFormModalSubmit(interaction) {
       files = await Promise.all(collected.map((a, i) => downloadAttachment(a).then((r) => ({ ...r, name: `proof${i + 1}.png` }))));
     } catch (err) {
       console.error('DeptPromotionReports: failed to download images', err);
-      await channel.send({ content: 'Не удалось загрузить изображения. Попробуйте снова.' }).catch(() => {});
+      await interaction
+        .followUp({ content: 'Не удалось загрузить изображения. Попробуйте снова.', flags: MessageFlags.Ephemeral })
+        .catch(() => {});
       return;
     }
 
@@ -360,6 +377,11 @@ async function handleFormModalSubmit(interaction) {
       applicantUser: interaction.user,
       applicantDisplayName,
     });
+
+    // Не засоряем чат: удаляем сообщения пользователя со скриншотами/командой "готово"
+    for (const m of messagesToDelete) {
+      await m.delete().catch(() => {});
+    }
   });
 
   return true;
