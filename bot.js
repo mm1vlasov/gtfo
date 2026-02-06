@@ -92,21 +92,34 @@ client.once(Events.ClientReady, async () => {
     console.error('Ошибка регистрации команд:', err);
   }
 
-  async function ensureSetupMessage(channel, getSetupContent, embedTitle, logName) {
+  async function ensureSetupMessage(channel, getSetupContent, embedTitle, logName, messageId = null) {
     if (!channel) {
       console.warn(logName + ': канал не найден (проверьте ID и доступ бота).');
       return;
     }
     const setup = getSetupContent();
-    const existing = await channel.messages.fetch({ limit: 100 }).catch(() => null);
-    const setupMsg = existing?.find((m) => m.author.id === client.user.id && m.embeds[0]?.title === embedTitle);
+
     try {
-      if (setupMsg) {
-        await setupMsg.edit(setup);
-        console.log(logName + ': сообщение с кнопкой обновлено.');
+      if (messageId) {
+        // Если указан ID сообщения, обновляем его
+        const targetMsg = await channel.messages.fetch(messageId).catch(() => null);
+        if (targetMsg) {
+          await targetMsg.edit(setup);
+          console.log(logName + ': сообщение с ID ' + messageId + ' обновлено.');
+        } else {
+          console.warn(logName + ': сообщение с ID ' + messageId + ' не найдено.');
+        }
       } else {
-        await channel.send(setup);
-        console.log(logName + ': новое сообщение с кнопкой отправлено.');
+        // Старая логика: ищем существующее или создаем новое
+        const existing = await channel.messages.fetch({ limit: 100 }).catch(() => null);
+        const setupMsg = existing?.find((m) => m.author.id === client.user.id && m.embeds[0]?.title === embedTitle);
+        if (setupMsg) {
+          await setupMsg.edit(setup);
+          console.log(logName + ': сообщение с кнопкой обновлено.');
+        } else {
+          await channel.send(setup);
+          console.log(logName + ': новое сообщение с кнопкой отправлено.');
+        }
       }
     } catch (err) {
       console.error(logName + ': не удалось отправить/обновить сообщение в канал:', err);
@@ -114,7 +127,7 @@ client.once(Events.ClientReady, async () => {
   }
 
   const resignChannel = RESIGN_CHANNEL_ID ? await client.channels.fetch(RESIGN_CHANNEL_ID).catch(() => null) : null;
-  await ensureSetupMessage(resignChannel, getResignSetupContent, 'Заявление на увольнение', 'Рапорт на увольнение');
+  await ensureSetupMessage(resignChannel, getResignSetupContent, 'Заявление на увольнение', 'Рапорт на увольнение', '1467767397137256573');
 
   const promotionChannel = PROMOTION_CHANNEL_ID ? await client.channels.fetch(PROMOTION_CHANNEL_ID).catch(() => null) : null;
   await ensureSetupMessage(promotionChannel, getPromotionSetupContent, 'Запрос на повышение', 'Запрос на повышение');
