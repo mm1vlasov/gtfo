@@ -43,7 +43,15 @@ function getSetupContent() {
       new EmbedBuilder()
         .setColor(EMBED_COLOR)
         .setTitle('Заявление на увольнение')
-        .setDescription('Чтобы подать заявление на увольнение, вам нужно нажать кнопку ниже и заполнить анкету!'),
+        .setDescription(
+          'Чтобы подать заявление на увольнение, нажмите кнопку ниже и заполните анкету.\n\n' +
+          '**После заполнения формы отправьте 2 фотографии одним сообщением в этот канал.**\n\n' +
+          '📌 **Важно!**\n' +
+          '1. Нажмите кнопку "Подать заявление на увольнение"\n' +
+          '2. Заполните форму\n' +
+          '3. Отправьте 2 фото одним сообщением в этот канал\n' +
+          '4. Бот создаст заявку с вашими данными и фотографиями'
+        ),
     ],
     components: [
       new ActionRowBuilder().addComponents(
@@ -148,7 +156,7 @@ async function handleOpenForm(interaction) {
     await interaction.reply({
       content: 'Подавать рапорт на увольнение может только роль SANG.',
       flags: MessageFlags.Ephemeral,
-    }).catch(() => {});
+    }).catch(() => { });
     return true;
   }
   await interaction.showModal(buildFormModal());
@@ -184,8 +192,8 @@ async function handleFormModalSubmit(interaction) {
   }
 
   await interaction.reply({
-    content: 'Отправьте **ровно 2 фотографии** в этот канал одним сообщением в течение 60 секунд.',
-    flags: MessageFlags.Ephemeral,
+    content: `${interaction.user} Вы должны прикрепить 2 изображения (Личное дело из планшета и ваш инвентарь)`,
+    flags: 0,
   });
 
   const channel = interaction.channel;
@@ -206,7 +214,7 @@ async function handleFormModalSubmit(interaction) {
     if (message.attachments.size !== 2) {
       const reply = await message.reply('Нужно прикрепить **ровно 2 фотографии**. Отправьте одно сообщение с двумя вложениями.').catch(() => null);
       if (reply) {
-        setTimeout(() => { message.delete().catch(() => {}); reply.delete().catch(() => {}); }, 5000);
+        setTimeout(() => { message.delete().catch(() => { }); reply.delete().catch(() => { }); }, 5000);
       }
       return;
     }
@@ -222,7 +230,7 @@ async function handleFormModalSubmit(interaction) {
       files = await Promise.all(attachments.map((a) => downloadAttachment(a)));
     } catch (err) {
       console.error('Resign: failed to download images', err);
-      await channel.send({ content: 'Не удалось загрузить изображения. Попробуйте снова.', ephemeral: false }).catch(() => {});
+      await channel.send({ content: 'Не удалось загрузить изображения. Попробуйте снова.', ephemeral: false }).catch(() => { });
       return;
     }
 
@@ -249,7 +257,8 @@ async function handleFormModalSubmit(interaction) {
       applicantMember: interaction.member,
     });
 
-    await message.delete().catch(() => {});
+    await message.delete().catch(() => { });
+    await interaction.deleteReply().catch(() => { });
   });
 
   collector.on('end', () => {
@@ -349,7 +358,7 @@ async function handleApprove(interaction) {
     await interaction.reply({
       content: 'Одобрять рапорт на увольнение может только роль «Старший состав».',
       flags: MessageFlags.Ephemeral,
-    }).catch(() => {});
+    }).catch(() => { });
     return true;
   }
 
@@ -394,7 +403,7 @@ async function handleApproveBlacklist(interaction) {
     await interaction.reply({
       content: 'Одобрять рапорт на увольнение может только роль «Старший состав».',
       flags: MessageFlags.Ephemeral,
-    }).catch(() => {});
+    }).catch(() => { });
     return true;
   }
 
@@ -458,7 +467,7 @@ async function handleDeclineButton(interaction) {
     await interaction.reply({
       content: 'Отклонять рапорт на увольнение может только роль «Старший состав».',
       flags: MessageFlags.Ephemeral,
-    }).catch(() => {});
+    }).catch(() => { });
     return true;
   }
 

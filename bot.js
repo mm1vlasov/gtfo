@@ -39,9 +39,42 @@ if (config.usePrivilegedIntents === true) {
 }
 const client = new Client({ intents: baseIntents });
 
+
+// Глобальные массивы для хранения данных участников
+global.discord_name = [];
+global.discord_id = [];
+
 client.once(Events.ClientReady, async () => {
   const readyAt = new Date().toISOString();
   console.log(`[Старт] Бот ${client.user.username} (${client.user.id}) запущен в ${readyAt}`);
+
+  // Парсинг участников
+  if (config.guildId) {
+    console.log('Начинаю загрузку участников сервера...');
+    const guild = client.guilds.cache.get(config.guildId) || await client.guilds.fetch(config.guildId).catch(() => null);
+    if (guild) {
+      try {
+        const members = await guild.members.fetch();
+        global.discord_name = [];
+        global.discord_id = [];
+        members.forEach((member) => {
+          global.discord_name.push(member.user.username);
+          global.discord_id.push(member.id);
+        });
+
+        try {
+          fs.writeFileSync('parsed_members.json', JSON.stringify({ discord_name: global.discord_name, discord_id: global.discord_id }, null, 2));
+          console.log(`[Участники] Успешно загружено ${members.size} участников. Данные сохранены в parsed_members.json`);
+        } catch (err) {
+          console.error('Ошибка записи файла участников:', err);
+        }
+      } catch (error) {
+        console.error('Ошибка при загрузке участников:', error);
+      }
+    } else {
+      console.warn('Гильдия не найдена по config.guildId.');
+    }
+  }
 
   const rest = new REST().setToken(config.token);
   const commands = commandsData.map((c) => c.data.toJSON());
@@ -65,7 +98,7 @@ client.once(Events.ClientReady, async () => {
       return;
     }
     const setup = getSetupContent();
-    const existing = await channel.messages.fetch({ limit: 20 }).catch(() => null);
+    const existing = await channel.messages.fetch({ limit: 100 }).catch(() => null);
     const setupMsg = existing?.find((m) => m.author.id === client.user.id && m.embeds[0]?.title === embedTitle);
     try {
       if (setupMsg) {
@@ -125,9 +158,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
       console.error(err);
       const reply = { content: 'Произошла ошибка.', flags: MessageFlags.Ephemeral };
       if (interaction.replied || interaction.deferred) {
-        await interaction.followUp(reply).catch(() => {});
+        await interaction.followUp(reply).catch(() => { });
       } else {
-        await interaction.reply(reply).catch(() => {});
+        await interaction.reply(reply).catch(() => { });
       }
       return;
     }
@@ -145,7 +178,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         content:
           'У вас нет прав на использование кадровых команд. Требуется роль «Старший состав» или «MA | Millitary Academy».',
         flags: MessageFlags.Ephemeral,
-      }).catch(() => {});
+      }).catch(() => { });
       return;
     }
   }
@@ -158,9 +191,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
       console.error(err);
       const reply = { content: 'Произошла ошибка.', flags: MessageFlags.Ephemeral };
       if (interaction.replied || interaction.deferred) {
-        await interaction.followUp(reply).catch(() => {});
+        await interaction.followUp(reply).catch(() => { });
       } else {
-        await interaction.reply(reply).catch(() => {});
+        await interaction.reply(reply).catch(() => { });
       }
     }
   }

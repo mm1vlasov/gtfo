@@ -1,0 +1,6 @@
+services:
+  sangbot:
+    image: sangbot
+    build:
+      context: .
+      dockerfile: ./Dockerfile
